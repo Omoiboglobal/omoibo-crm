@@ -1,0 +1,1171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Department {
+  ADMINISTRATION
+  SALES
+  INVENTORY
+  LOGISTICS
+  FINANCE
+  HR
+  FACILITY
+  EXECUTIVE
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum DealStage {
+  QUALIFICATION
+  PROPOSAL
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  RETURNED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum AssetStatus {
+  ACTIVE
+  MAINTENANCE
+  DECOMMISSIONED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum BillStatus {
+  DRAFT
+  RECEIVED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+  CARD
+  PAYSTACK
+  FLUTTERWAVE
+  OTHER
+}
+
+enum JournalEntryType {
+  DEBIT
+  CREDIT
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  DANGER
+  SYSTEM
+}
+
+enum AIAgentStatus {
+  ACTIVE
+  PAUSED
+  DRAFT
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// ─── CORE ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String     @id @default(uuid())
+  name      String
+  email     String     @unique
+  password  String
+  role      String
+  department Department
+  isActive  Boolean    @default(true)
+  avatar    String?
+  phone     String?
+  timezone  String     @default("Africa/Lagos")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  permissions         Permission[]
+  leadsAssigned       Lead[]           @relation("AssignedTo")
+  leadsCreated        Lead[]           @relation("CreatedBy")
+  dealsAssigned       Deal[]           @relation("DealAssignedTo")
+  contactsCreated     Contact[]        @relation("ContactCreatedBy")
+  accountsCreated     Account[]        @relation("AccountCreatedBy")
+  activities          Activity[]
+  tasks               Task[]           @relation("TaskAssignee")
+  tasksCreated        Task[]           @relation("TaskCreator")
+  txCreated           Transaction[]    @relation("TxCreatedBy")
+  txApproved          Transaction[]    @relation("TxApprovedBy")
+  pettyCashReqs       PettyCash[]      @relation("PCRequester")
+  pettyCashApproved   PettyCash[]      @relation("PCApprover")
+  attendances         Attendance[]
+  leaveRequests       LeaveRequest[]   @relation("LeaveRequester")
+  leaveApproved       LeaveRequest[]   @relation("LeaveApprover")
+  auditLogs           AuditLog[]
+  staffProfile        StaffProfile?
+  notifications       Notification[]
+  sentMessages        InternalMessage[] @relation("MsgSender")
+  documents           Document[]       @relation("DocUploader")
+  aiConversations     AIConversation[]
+  invoicesCreated     Invoice[]        @relation("InvCreatedBy")
+  billsCreated        Bill[]           @relation("BillCreatedBy")
+  paymentsRecorded    Payment[]        @relation("PayRecordedBy")
+  journalEntries      JournalEntry[]   @relation("JECreatedBy")
+  quotesCreated       Quote[]          @relation("QuoteCreatedBy")
+  purchaseOrders      PurchaseOrder[]  @relation("POCreatedBy")
+
+  @@map("users")
+}
+
+model Permission {
+  id         String   @id @default(uuid())
+  userId     String
+  featureKey String
+  isEnabled  Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, featureKey])
+  @@map("permissions")
+}
+
+// ─── SALES ────────────────────────────────────────────────────────────────────
+
+model Contact {
+  id          String   @id @default(uuid())
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+  mobile      String?
+  title       String?
+  jobTitle    String?
+  accountId   String?
+  address     String?
+  city        String?
+  country     String   @default("Nigeria")
+  source      String?
+  notes       String?
+  tags        String[]
+  isActive    Boolean  @default(true)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  account    Account?    @relation(fields: [accountId], references: [id])
+  createdBy  User        @relation("ContactCreatedBy", fields: [createdById], references: [id])
+  leads      Lead[]
+  activities Activity[]
+  invoices   Invoice[]
+  quotes     Quote[]
+
+  @@map("contacts")
+}
+
+model Account {
+  id            String   @id @default(uuid())
+  name          String
+  industry      String?
+  website       String?
+  phone         String?
+  email         String?
+  address       String?
+  city          String?
+  country       String   @default("Nigeria")
+  annualRevenue Float?
+  employees     Int?
+  rating        String?
+  notes         String?
+  tags          String[]
+  isActive      Boolean  @default(true)
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  createdBy  User        @relation("AccountCreatedBy", fields: [createdById], references: [id])
+  contacts   Contact[]
+  leads      Lead[]
+  deals      Deal[]
+  invoices   Invoice[]
+  quotes     Quote[]
+
+  @@map("accounts")
+}
+
+model Lead {
+  id             String     @id @default(uuid())
+  fullName       String
+  email          String?
+  phone          String?
+  company        String?
+  source         String?
+  status         LeadStatus @default(NEW)
+  notes          String?
+  aiScore        Float?     @default(0)
+  aiScoreReason  String?
+  expectedValue  Float?
+  assignedToId   String?
+  createdById    String
+  contactId      String?
+  accountId      String?
+  convertedAt    DateTime?
+  lostReason     String?
+  tags           String[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  assignedTo User?      @relation("AssignedTo", fields: [assignedToId], references: [id])
+  createdBy  User       @relation("CreatedBy", fields: [createdById], references: [id])
+  contact    Contact?   @relation(fields: [contactId], references: [id])
+  account    Account?   @relation(fields: [accountId], references: [id])
+  activities Activity[]
+  deals      Deal[]
+  documents  Document[]
+
+  @@map("leads")
+}
+
+model Deal {
+  id            String    @id @default(uuid())
+  title         String
+  value         Float
+  stage         DealStage @default(QUALIFICATION)
+  probability   Int       @default(20)
+  expectedClose DateTime?
+  actualClose   DateTime?
+  leadId        String?
+  accountId     String?
+  assignedToId  String
+  notes         String?
+  lostReason    String?
+  tags          String[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  lead       Lead?      @relation(fields: [leadId], references: [id])
+  account    Account?   @relation(fields: [accountId], references: [id])
+  assignedTo User       @relation("DealAssignedTo", fields: [assignedToId], references: [id])
+  activities Activity[]
+  quotes     Quote[]
+  documents  Document[]
+
+  @@map("deals")
+}
+
+model Quote {
+  id          String   @id @default(uuid())
+  quoteNumber String   @unique
+  title       String
+  dealId      String?
+  contactId   String?
+  accountId   String?
+  status      String   @default("DRAFT")
+  validUntil  DateTime?
+  subtotal    Float    @default(0)
+  taxRate     Float    @default(7.5)
+  taxAmount   Float    @default(0)
+  discount    Float    @default(0)
+  total       Float    @default(0)
+  notes       String?
+  terms       String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  deal      Deal?          @relation(fields: [dealId], references: [id])
+  contact   Contact?       @relation(fields: [contactId], references: [id])
+  account   Account?       @relation(fields: [accountId], references: [id])
+  createdBy User           @relation("QuoteCreatedBy", fields: [createdById], references: [id])
+  lineItems QuoteLineItem[]
+
+  @@map("quotes")
+}
+
+model QuoteLineItem {
+  id          String  @id @default(uuid())
+  quoteId     String
+  productId   String?
+  description String
+  quantity    Float
+  unitPrice   Float
+  discount    Float   @default(0)
+  total       Float
+
+  quote   Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@map("quote_line_items")
+}
+
+model Activity {
+  id          String   @id @default(uuid())
+  type        String
+  subject     String
+  notes       String?
+  outcome     String?
+  duration    Int?
+  scheduledAt DateTime?
+  completedAt DateTime?
+  leadId      String?
+  dealId      String?
+  contactId   String?
+  userId      String
+  createdAt   DateTime @default(now())
+
+  lead    Lead?    @relation(fields: [leadId], references: [id])
+  deal    Deal?    @relation(fields: [dealId], references: [id])
+  contact Contact? @relation(fields: [contactId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@map("activities")
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  priority    String   @default("MEDIUM")
+  status      String   @default("OPEN")
+  assigneeId  String
+  creatorId   String
+  entityType  String?
+  entityId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignee User @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator  User @relation("TaskCreator", fields: [creatorId], references: [id])
+
+  @@map("tasks")
+}
+
+// ─── INVENTORY ────────────────────────────────────────────────────────────────
+
+model Warehouse {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  location  String
+  address   String?
+  city      String?
+  state     String?
+  country   String   @default("Nigeria")
+  managerId String?
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  isPrimary Boolean  @default(false)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products       Product[]
+  transfersFrom  StockTransfer[] @relation("TransferFrom")
+  transfersTo    StockTransfer[] @relation("TransferTo")
+  purchaseOrders PurchaseOrder[]
+
+  @@map("warehouses")
+}
+
+model ProductCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  parentId    String?
+  createdAt   DateTime @default(now())
+
+  parent   ProductCategory?  @relation("CatParent", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("CatParent")
+  products Product[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id               String   @id @default(uuid())
+  sku              String   @unique
+  barcode          String?
+  name             String
+  categoryId       String?
+  description      String?
+  warehouseId      String
+  quantity         Int      @default(0)
+  reservedQty      Int      @default(0)
+  reorderLevel     Int      @default(10)
+  reorderQuantity  Int      @default(50)
+  unitPrice        Float
+  costPrice        Float?
+  valuationMethod  String   @default("FIFO")
+  unit             String   @default("piece")
+  weight           Float?
+  supplierId       String?
+  isActive         Boolean  @default(true)
+  tags             String[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  warehouse      Warehouse        @relation(fields: [warehouseId], references: [id])
+  category       ProductCategory? @relation(fields: [categoryId], references: [id])
+  supplier       Supplier?        @relation(fields: [supplierId], references: [id])
+  transferItems  StockTransferItem[]
+  orderItems     OrderItem[]
+  stockMovements StockMovement[]
+  invoiceItems   InvoiceLineItem[]
+  billItems      BillLineItem[]
+  quoteItems     QuoteLineItem[]
+  purchaseItems  PurchaseOrderItem[]
+
+  @@map("products")
+}
+
+model StockMovement {
+  id        String   @id @default(uuid())
+  productId String
+  type      String
+  quantity  Int
+  reference String?
+  notes     String?
+  unitCost  Float?
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("stock_movements")
+}
+
+model StockTransfer {
+  id              String         @id @default(uuid())
+  transferNumber  String         @unique
+  fromWarehouseId String
+  toWarehouseId   String
+  status          ApprovalStatus @default(PENDING)
+  notes           String?
+  requestedById   String?
+  approvedById    String?
+  completedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  fromWarehouse Warehouse           @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouse   Warehouse           @relation("TransferTo", fields: [toWarehouseId], references: [id])
+  items         StockTransferItem[]
+
+  @@map("stock_transfers")
+}
+
+model StockTransferItem {
+  id         String @id @default(uuid())
+  transferId String
+  productId  String
+  quantity   Int
+  received   Int    @default(0)
+
+  transfer StockTransfer @relation(fields: [transferId], references: [id])
+  product  Product       @relation(fields: [productId], references: [id])
+
+  @@map("stock_transfer_items")
+}
+
+model Supplier {
+  id           String   @id @default(uuid())
+  name         String
+  email        String?
+  phone        String?
+  address      String?
+  city         String?
+  country      String   @default("Nigeria")
+  taxNumber    String?
+  paymentTerms String?
+  notes        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  products       Product[]
+  purchaseOrders PurchaseOrder[]
+  bills          Bill[]
+
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id           String              @id @default(uuid())
+  poNumber     String              @unique
+  supplierId   String
+  warehouseId  String
+  status       PurchaseOrderStatus @default(DRAFT)
+  expectedDate DateTime?
+  receivedDate DateTime?
+  subtotal     Float               @default(0)
+  taxAmount    Float               @default(0)
+  total        Float               @default(0)
+  notes        String?
+  createdById  String
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  supplier    Supplier            @relation(fields: [supplierId], references: [id])
+  warehouse   Warehouse           @relation(fields: [warehouseId], references: [id])
+  createdBy   User                @relation("POCreatedBy", fields: [createdById], references: [id])
+  items       PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String  @id @default(uuid())
+  purchaseOrderId String
+  productId       String
+  quantity        Int
+  unitCost        Float
+  received        Int     @default(0)
+  total           Float
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  product       Product       @relation(fields: [productId], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+// ─── LOGISTICS ────────────────────────────────────────────────────────────────
+
+model Order {
+  id              String      @id @default(uuid())
+  orderNumber     String      @unique
+  customerId      String?
+  customerName    String
+  customerPhone   String?
+  customerEmail   String?
+  deliveryAddress String
+  city            String?
+  state           String?
+  status          OrderStatus @default(PENDING)
+  totalAmount     Float
+  shippingCost    Float       @default(0)
+  notes           String?
+  trackingNumber  String?
+  carrier         String?
+  priority        String      @default("NORMAL")
+  dispatchedAt    DateTime?
+  deliveredAt     DateTime?
+  proofOfDelivery String?
+  returnReason    String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Float
+  total     Float
+
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+// ─── FINANCE — ENTERPRISE ─────────────────────────────────────────────────────
+
+model ChartOfAccounts {
+  id             String   @id @default(uuid())
+  code           String   @unique
+  name           String
+  type           String   // ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
+  subType        String?
+  description    String?
+  parentId       String?
+  isActive       Boolean  @default(true)
+  openingBalance Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  parent       ChartOfAccounts?  @relation("COAParent", fields: [parentId], references: [id])
+  children     ChartOfAccounts[] @relation("COAParent")
+  journalLines JournalLine[]
+  invoices     Invoice[]         @relation("InvAccount")
+  bills        Bill[]            @relation("BillAccount")
+
+  @@map("chart_of_accounts")
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  contactId     String?
+  accountId     String?
+  accountCodeId String?
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime?
+  subtotal      Float         @default(0)
+  taxRate       Float         @default(7.5)
+  taxAmount     Float         @default(0)
+  discount      Float         @default(0)
+  total         Float         @default(0)
+  amountPaid    Float         @default(0)
+  amountDue     Float         @default(0)
+  currency      String        @default("NGN")
+  notes         String?
+  terms         String?
+  sentAt        DateTime?
+  paidAt        DateTime?
+  createdById   String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  contact     Contact?          @relation(fields: [contactId], references: [id])
+  account     Account?          @relation(fields: [accountId], references: [id])
+  accountCode ChartOfAccounts?  @relation("InvAccount", fields: [accountCodeId], references: [id])
+  createdBy   User              @relation("InvCreatedBy", fields: [createdById], references: [id])
+  lineItems   InvoiceLineItem[]
+  payments    Payment[]
+  journalEntry JournalEntry?
+
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  productId   String?
+  description String
+  quantity    Float
+  unitPrice   Float
+  discount    Float   @default(0)
+  taxRate     Float   @default(7.5)
+  total       Float
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@map("invoice_line_items")
+}
+
+model Bill {
+  id            String     @id @default(uuid())
+  billNumber    String     @unique
+  supplierId    String?
+  accountCodeId String?
+  status        BillStatus @default(DRAFT)
+  billDate      DateTime   @default(now())
+  dueDate       DateTime?
+  subtotal      Float      @default(0)
+  taxAmount     Float      @default(0)
+  total         Float      @default(0)
+  amountPaid    Float      @default(0)
+  amountDue     Float      @default(0)
+  currency      String     @default("NGN")
+  notes         String?
+  paidAt        DateTime?
+  createdById   String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  supplier     Supplier?         @relation(fields: [supplierId], references: [id])
+  accountCode  ChartOfAccounts?  @relation("BillAccount", fields: [accountCodeId], references: [id])
+  createdBy    User              @relation("BillCreatedBy", fields: [createdById], references: [id])
+  lineItems    BillLineItem[]
+  payments     Payment[]
+  journalEntry JournalEntry?
+
+  @@map("bills")
+}
+
+model BillLineItem {
+  id          String  @id @default(uuid())
+  billId      String
+  productId   String?
+  description String
+  quantity    Float
+  unitPrice   Float
+  total       Float
+
+  bill    Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@map("bill_line_items")
+}
+
+model Payment {
+  id           String        @id @default(uuid())
+  invoiceId    String?
+  billId       String?
+  amount       Float
+  paymentDate  DateTime      @default(now())
+  method       PaymentMethod @default(BANK_TRANSFER)
+  reference    String?
+  bankName     String?
+  notes        String?
+  currency     String        @default("NGN")
+  recordedById String
+  createdAt    DateTime      @default(now())
+
+  invoice    Invoice? @relation(fields: [invoiceId], references: [id])
+  bill       Bill?    @relation(fields: [billId], references: [id])
+  recordedBy User     @relation("PayRecordedBy", fields: [recordedById], references: [id])
+
+  @@map("payments")
+}
+
+model JournalEntry {
+  id          String   @id @default(uuid())
+  entryNumber String   @unique
+  date        DateTime @default(now())
+  description String
+  reference   String?
+  invoiceId   String?  @unique
+  billId      String?  @unique
+  isPosted    Boolean  @default(false)
+  createdById String
+  createdAt   DateTime @default(now())
+
+  lines     JournalLine[]
+  invoice   Invoice?  @relation(fields: [invoiceId], references: [id])
+  bill      Bill?     @relation(fields: [billId], references: [id])
+  createdBy User      @relation("JECreatedBy", fields: [createdById], references: [id])
+
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id          String           @id @default(uuid())
+  entryId     String
+  accountId   String
+  type        JournalEntryType
+  amount      Float
+  description String?
+
+  entry   JournalEntry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account ChartOfAccounts @relation(fields: [accountId], references: [id])
+
+  @@map("journal_lines")
+}
+
+model Transaction {
+  id           String   @id @default(uuid())
+  type         String
+  amount       Float
+  currency     String   @default("NGN")
+  reference    String?
+  category     String
+  description  String?
+  approvedById String?
+  createdById  String
+  status       String   @default("APPROVED")
+  createdAt    DateTime @default(now())
+
+  createdBy  User  @relation("TxCreatedBy", fields: [createdById], references: [id])
+  approvedBy User? @relation("TxApprovedBy", fields: [approvedById], references: [id])
+
+  @@map("transactions")
+}
+
+model PettyCash {
+  id             String   @id @default(uuid())
+  amount         Float
+  purpose        String
+  description    String?
+  status         String   @default("PENDING")
+  requesterId    String
+  approverId     String?
+  approvedAt     DateTime?
+  rejectedReason String?
+  disbursedAt    DateTime?
+  receiptRef     String?
+  createdAt      DateTime @default(now())
+
+  requester User  @relation("PCRequester", fields: [requesterId], references: [id])
+  approver  User? @relation("PCApprover", fields: [approverId], references: [id])
+
+  @@map("petty_cash")
+}
+
+model Budget {
+  id         String     @id @default(uuid())
+  department Department
+  title      String
+  amount     Float
+  spent      Float      @default(0)
+  period     String
+  startDate  DateTime?
+  endDate    DateTime?
+  notes      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@map("budgets")
+}
+
+model TaxRate {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  rate      Float
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("tax_rates")
+}
+
+model BankAccount {
+  id             String   @id @default(uuid())
+  name           String
+  bankName       String
+  accountNumber  String
+  currency       String   @default("NGN")
+  openingBalance Float    @default(0)
+  currentBalance Float    @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("bank_accounts")
+}
+
+// ─── HR ───────────────────────────────────────────────────────────────────────
+
+model StaffProfile {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  employeeId       String    @unique
+  dateOfBirth      DateTime?
+  gender           String?
+  address          String?
+  city             String?
+  state            String?
+  nationality      String?
+  emergencyContact String?
+  emergencyPhone   String?
+  hireDate         DateTime  @default(now())
+  confirmationDate DateTime?
+  exitDate         DateTime?
+  salary           Float?
+  salaryGrade      String?
+  jobTitle         String?
+  managerId        String?
+  bankName         String?
+  accountNumber    String?
+  taxId            String?
+  pensionId        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user               User                @relation(fields: [userId], references: [id])
+  documents          Document[]
+  payslips           Payslip[]
+  performanceReviews PerformanceReview[]
+
+  @@map("staff_profiles")
+}
+
+model Attendance {
+  id          String    @id @default(uuid())
+  userId      String
+  date        DateTime
+  clockIn     DateTime?
+  clockOut    DateTime?
+  hoursWorked Float?
+  status      String    @default("PRESENT")
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("attendance")
+}
+
+model LeaveRequest {
+  id           String      @id @default(uuid())
+  requesterId  String
+  approverId   String?
+  leaveType    String
+  startDate    DateTime
+  endDate      DateTime
+  days         Int         @default(1)
+  reason       String
+  status       LeaveStatus @default(PENDING)
+  approverNote String?
+  createdAt    DateTime    @default(now())
+
+  requester User  @relation("LeaveRequester", fields: [requesterId], references: [id])
+  approver  User? @relation("LeaveApprover", fields: [approverId], references: [id])
+
+  @@map("leave_requests")
+}
+
+model Payslip {
+  id             String   @id @default(uuid())
+  staffProfileId String
+  period         String
+  basicSalary    Float
+  allowances     Float    @default(0)
+  deductions     Float    @default(0)
+  tax            Float    @default(0)
+  pension        Float    @default(0)
+  netPay         Float
+  status         String   @default("DRAFT")
+  generatedAt    DateTime @default(now())
+
+  staffProfile StaffProfile @relation(fields: [staffProfileId], references: [id])
+
+  @@map("payslips")
+}
+
+model PerformanceReview {
+  id             String   @id @default(uuid())
+  staffProfileId String
+  reviewPeriod   String
+  reviewDate     DateTime @default(now())
+  rating         Int
+  goals          String?
+  achievements   String?
+  improvements   String?
+  reviewerNotes  String?
+  createdAt      DateTime @default(now())
+
+  staffProfile StaffProfile @relation(fields: [staffProfileId], references: [id])
+
+  @@map("performance_reviews")
+}
+
+// ─── FACILITY ─────────────────────────────────────────────────────────────────
+
+model Asset {
+  id               String      @id @default(uuid())
+  name             String
+  assetTag         String      @unique
+  category         String
+  location         String?
+  assignedTo       String?
+  purchaseDate     DateTime?
+  purchasePrice    Float?
+  currentValue     Float?
+  depreciationRate Float?
+  status           AssetStatus @default(ACTIVE)
+  warrantyExpiry   DateTime?
+  notes            String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  maintenanceLogs MaintenanceLog[]
+  documents       Document[]
+
+  @@map("assets")
+}
+
+model MaintenanceLog {
+  id          String   @id @default(uuid())
+  assetId     String
+  description String
+  cost        Float?
+  performedBy String?
+  vendor      String?
+  nextService DateTime?
+  performedAt DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id])
+
+  @@map("maintenance_logs")
+}
+
+// ─── DOCUMENTS ────────────────────────────────────────────────────────────────
+
+model Document {
+  id             String   @id @default(uuid())
+  name           String
+  fileUrl        String
+  fileType       String
+  fileSize       Int?
+  entityType     String
+  entityId       String
+  uploadedById   String
+  staffProfileId String?
+  assetId        String?
+  leadId         String?
+  dealId         String?
+  createdAt      DateTime @default(now())
+
+  uploadedBy   User          @relation("DocUploader", fields: [uploadedById], references: [id])
+  staffProfile StaffProfile? @relation(fields: [staffProfileId], references: [id])
+  asset        Asset?        @relation(fields: [assetId], references: [id])
+  lead         Lead?         @relation(fields: [leadId], references: [id])
+  deal         Deal?         @relation(fields: [dealId], references: [id])
+
+  @@map("documents")
+}
+
+// ─── MESSAGING ────────────────────────────────────────────────────────────────
+
+model InternalMessage {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String?
+  channelId  String?
+  content    String
+  isRead     Boolean  @default(false)
+  entityType String?
+  entityId   String?
+  createdAt  DateTime @default(now())
+
+  sender User @relation("MsgSender", fields: [senderId], references: [id])
+
+  @@map("internal_messages")
+}
+
+model Notification {
+  id         String           @id @default(uuid())
+  userId     String
+  title      String
+  message    String
+  type       NotificationType @default(INFO)
+  isRead     Boolean          @default(false)
+  actionUrl  String?
+  entityType String?
+  entityId   String?
+  createdAt  DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+// ─── AI ───────────────────────────────────────────────────────────────────────
+
+model AIAgent {
+  id           String        @id @default(uuid())
+  name         String
+  description  String?
+  systemPrompt String
+  model        String        @default("claude-sonnet-4-20250514")
+  status       AIAgentStatus @default(ACTIVE)
+  department   Department?
+  capabilities String[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  conversations AIConversation[]
+
+  @@map("ai_agents")
+}
+
+model AIConversation {
+  id        String   @id @default(uuid())
+  agentId   String
+  userId    String
+  title     String?
+  context   Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent    AIAgent    @relation(fields: [agentId], references: [id])
+  user     User       @relation(fields: [userId], references: [id])
+  messages AIMessage[]
+
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id             String      @id @default(uuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  tokens         Int?
+  createdAt      DateTime    @default(now())
+
+  conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("ai_messages")
+}
+
+// ─── SYSTEM ───────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}

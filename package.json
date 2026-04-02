@@ -1,0 +1,14 @@
+{
+  "name": "omoibo-crm",
+  "version": "1.0.0",
+  "description": "Omoibo Global Limited Enterprise CRM",
+  "scripts": {
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm start",
+    "seed": "cd backend && node prisma/seed.js",
+    "migrate": "cd backend && npx prisma migrate dev --name init",
+    "setup": "npm run install:all && npm run migrate && npm run seed"
+  },
+  "author": "Omoibo Global Limited"
+}
