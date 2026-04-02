@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUsers, createUser, updateUser, toggleUserActive, getUserPermissions, togglePermission, getAuditLogs } from '../../api/client';
+import { getAdminUsers, createUser, updateUser, toggleUserActive, getUserPermissions, togglePermission, getAuditLogs } from '../../api/client';
 import { Plus, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -30,7 +30,7 @@ export default function Admin() {
 
   const load = async () => {
     setLoading(true);
-    const [u, a] = await Promise.all([getUsers(), getAuditLogs()]);
+    const [u, a] = await Promise.all([getAdminUsers(), getAuditLogs()]);
     setUsers(u.data.data); setAuditLogs(a.data.data); setLoading(false);
   };
 
