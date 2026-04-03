@@ -15,7 +15,7 @@ api.interceptors.response.use(res => res, async err => {
     const refresh = localStorage.getItem('refreshToken');
     if (refresh) {
       try {
-        const { data } = await axios.post('/api/v1/auth/refresh', { refreshToken: refresh });
+        const { data } = await api.post('/auth/refresh', { refreshToken: refresh });
         localStorage.setItem('token', data.data.token);
         orig.headers.Authorization = `Bearer ${data.data.token}`;
         return api(orig);
@@ -158,7 +158,7 @@ export const getTaxRates = () => api.get('/finance/tax-rates');
 // ── FINANCE — REPORTS ─────────────────────────────────────────────────────────
 export const getPLReport = (params) => api.get('/finance/reports/pl', { params });
 export const getARAgingReport = () => api.get('/finance/reports/ar-aging');
-export const getAPAgingReport = () => api.get('/finance/reports/ap-aging'); // note: add this route if needed
+export const getAPAgingReport = () => api.get('/finance/reports/ap-aging');
 export const getCashFlowReport = () => api.get('/finance/reports/cash-flow');
 export const getBalanceSheet = () => api.get('/finance/reports/balance-sheet');
 export const getFinanceStats = () => api.get('/finance/stats');
