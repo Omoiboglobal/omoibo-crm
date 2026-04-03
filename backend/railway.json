@@ -4,10 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "node src/index.js",
- "start:prod": "npm run migrate && npm run seed && node src/index.js",
-  "migrate": "npx prisma migrate deploy",
-  "seed": "node prisma/seed.js"
+    "startCommand": "npm run start:prod",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
