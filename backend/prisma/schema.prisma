@@ -1168,4 +1168,62 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 
   @@map("system_settings")
+// ============================================
+// NEW MODELS FOR ENHANCED CRM
+// Add these at the end of your schema.prisma
+// ============================================
+
+model Department {
+  id          String   @id @default(uuid())
+n  name        String   @unique
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]
+  
+  @@map("departments")
+}
+
+// Replace your old SystemSetting model with this enhanced version
+model SystemSettings {
+  id              String   @id @default("default")
+  companyName     String   @default("OMOIBO CRM")
+  companyEmail    String?
+  companyPhone    String?
+  companyAddress  String?
+  logoUrl         String?
+  faviconUrl      String?
+  primaryColor    String   @default("#1B3A6B")
+  secondaryColor  String   @default("#1A7A4A")
+  accentColor     String   @default("#D35400")
+  defaultTimezone String   @default("Africa/Lagos")
+  dateFormat      String   @default("DD/MM/YYYY")
+  currency        String   @default("NGN")
+  emailTemplates  Json?
+  invoiceSettings Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("system_settings")
+}
+
+// Counter for auto-generating SKU, Order numbers, etc.
+model Counter {
+  id         String   @id @default(uuid())
+  type       String   @unique // 'SKU', 'ORDER', 'INVOICE', 'PO', 'TRANSFER'
+  prefix     String   @default("")
+  lastNumber Int      @default(0)
+  year       Int?
+  updatedAt  DateTime @updatedAt
+  
+  @@map("counters")
+}
+
+// Update your existing User model - ADD THESE FIELDS:
+// In your existing User model, add:
+// departmentId String?
+// department   Department? @relation(fields: [departmentId], references: [id])
 }
