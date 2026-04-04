@@ -1,29 +1,46 @@
 import axios from 'axios';
 
+// DEBUG: Verify environment variable is loaded
+console.log('=== API CLIENT DEBUG ===');
+console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+console.log('Window location:', window.location.href);
+console.log('========================');
+
 const api = axios.create({ baseURL: process.env.REACT_APP_API_URL || '/api/v1' });
 
 api.interceptors.request.use(cfg => {
+  console.log('API Request:', cfg.method?.toUpperCase(), cfg.baseURL + cfg.url);
   const token = localStorage.getItem('token');
   if (token) cfg.headers.Authorization = `Bearer ${token}`;
   return cfg;
 });
 
-api.interceptors.response.use(res => res, async err => {
-  const orig = err.config;
-  if (err.response?.status === 401 && !orig._retry) {
-    orig._retry = true;
-    const refresh = localStorage.getItem('refreshToken');
-    if (refresh) {
-      try {
-        const { data } = await api.post('/auth/refresh', { refreshToken: refresh });
-        localStorage.setItem('token', data.data.token);
-        orig.headers.Authorization = `Bearer ${data.data.token}`;
-        return api(orig);
-      } catch { localStorage.clear(); window.location.href = '/login'; }
+api.interceptors.response.use(
+  res => {
+    console.log('API Response:', res.status, res.config.url);
+    return res;
+  },
+  async err => {
+    console.error('API Error:', err.response?.status, err.config?.url, err.message);
+    const orig = err.config;
+    if (err.response?.status === 401 && !orig._retry) {
+      orig._retry = true;
+      const refresh = localStorage.getItem('refreshToken');
+      if (refresh) {
+        try {
+          const { data } = await api.post('/auth/refresh', { refreshToken: refresh });
+          localStorage.setItem('token', data.data.token);
+          orig.headers.Authorization = `Bearer ${data.data.token}`;
+          return api(orig);
+        } catch { 
+          localStorage.clear(); 
+          window.location.href = '/login'; 
+        }
+      }
     }
+    return Promise.reject(err);
   }
-  return Promise.reject(err);
-});
+);
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 export const login = (email, password) => api.post('/auth/login', { email, password });
