@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Department {
+enum DepartmentEnum {
   ADMINISTRATION
   SALES
   INVENTORY
@@ -126,50 +126,50 @@ enum MessageRole {
   SYSTEM
 }
 
-// ─── CORE ─────────────────────────────────────────────────────────────────────
-
 model User {
-  id        String     @id @default(uuid())
-  name      String
-  email     String     @unique
-  password  String
-  role      String
-  department Department
-  isActive  Boolean    @default(true)
-  avatar    String?
-  phone     String?
-  timezone  String     @default("Africa/Lagos")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id           String          @id @default(uuid())
+  name         String
+  email        String          @unique
+  password     String
+  role         String
+  department   DepartmentEnum
+  departmentId String?
+  dept         Department?     @relation(fields: [departmentId], references: [id])
+  isActive     Boolean         @default(true)
+  avatar       String?
+  phone        String?
+  timezone     String          @default("Africa/Lagos")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
-  permissions         Permission[]
-  leadsAssigned       Lead[]           @relation("AssignedTo")
-  leadsCreated        Lead[]           @relation("CreatedBy")
-  dealsAssigned       Deal[]           @relation("DealAssignedTo")
-  contactsCreated     Contact[]        @relation("ContactCreatedBy")
-  accountsCreated     Account[]        @relation("AccountCreatedBy")
-  activities          Activity[]
-  tasks               Task[]           @relation("TaskAssignee")
-  tasksCreated        Task[]           @relation("TaskCreator")
-  txCreated           Transaction[]    @relation("TxCreatedBy")
-  txApproved          Transaction[]    @relation("TxApprovedBy")
-  pettyCashReqs       PettyCash[]      @relation("PCRequester")
-  pettyCashApproved   PettyCash[]      @relation("PCApprover")
-  attendances         Attendance[]
-  leaveRequests       LeaveRequest[]   @relation("LeaveRequester")
-  leaveApproved       LeaveRequest[]   @relation("LeaveApprover")
-  auditLogs           AuditLog[]
-  staffProfile        StaffProfile?
-  notifications       Notification[]
-  sentMessages        InternalMessage[] @relation("MsgSender")
-  documents           Document[]       @relation("DocUploader")
-  aiConversations     AIConversation[]
-  invoicesCreated     Invoice[]        @relation("InvCreatedBy")
-  billsCreated        Bill[]           @relation("BillCreatedBy")
-  paymentsRecorded    Payment[]        @relation("PayRecordedBy")
-  journalEntries      JournalEntry[]   @relation("JECreatedBy")
-  quotesCreated       Quote[]          @relation("QuoteCreatedBy")
-  purchaseOrders      PurchaseOrder[]  @relation("POCreatedBy")
+  permissions       Permission[]
+  leadsAssigned     Lead[]           @relation("AssignedTo")
+  leadsCreated      Lead[]           @relation("CreatedBy")
+  dealsAssigned     Deal[]           @relation("DealAssignedTo")
+  contactsCreated   Contact[]        @relation("ContactCreatedBy")
+  accountsCreated   Account[]        @relation("AccountCreatedBy")
+  activities        Activity[]
+  tasks             Task[]           @relation("TaskAssignee")
+  tasksCreated      Task[]           @relation("TaskCreator")
+  txCreated         Transaction[]    @relation("TxCreatedBy")
+  txApproved        Transaction[]    @relation("TxApprovedBy")
+  pettyCashReqs     PettyCash[]      @relation("PCRequester")
+  pettyCashApproved PettyCash[]      @relation("PCApprover")
+  attendances       Attendance[]
+  leaveRequests     LeaveRequest[]   @relation("LeaveRequester")
+  leaveApproved     LeaveRequest[]   @relation("LeaveApprover")
+  auditLogs         AuditLog[]
+  staffProfile      StaffProfile?
+  notifications     Notification[]
+  sentMessages      InternalMessage[] @relation("MsgSender")
+  documents         Document[]       @relation("DocUploader")
+  aiConversations   AIConversation[]
+  invoicesCreated   Invoice[]        @relation("InvCreatedBy")
+  billsCreated      Bill[]           @relation("BillCreatedBy")
+  paymentsRecorded  Payment[]        @relation("PayRecordedBy")
+  journalEntries    JournalEntry[]   @relation("JECreatedBy")
+  quotesCreated     Quote[]          @relation("QuoteCreatedBy")
+  purchaseOrders    PurchaseOrder[]  @relation("POCreatedBy")
 
   @@map("users")
 }
@@ -181,11 +181,57 @@ model Permission {
   isEnabled  Boolean  @default(false)
   updatedAt  DateTime @updatedAt
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, featureKey])
   @@map("permissions")
 }
 
-// ─── SALES ────────────────────────────────────────────────────────────────────
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+
+  @@map("departments")
+}
+
+model SystemSettings {
+  id              String   @id @default("default")
+  companyName     String   @default("OMOIBO CRM")
+  companyEmail    String?
+  companyPhone    String?
+  companyAddress  String?
+  logoUrl         String?
+  faviconUrl      String?
+  primaryColor    String   @default("#1B3A6B")
+  secondaryColor  String   @default("#1A7A4A")
+  accentColor     String   @default("#D35400")
+  defaultTimezone String   @default("Africa/Lagos")
+  dateFormat      String   @default("DD/MM/YYYY")
+  currency        String   @default("NGN")
+  emailTemplates  Json?
+  invoiceSettings Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model Counter {
+  id         String   @id @default(uuid())
+  type       String   @unique
+  prefix     String   @default("")
+  lastNumber Int      @default(0)
+  year       Int?
+  updatedAt  DateTime @updatedAt
+
+  @@map("counters")
+}
 
 model Contact {
   id          String   @id @default(uuid())
@@ -249,26 +295,26 @@ model Account {
 }
 
 model Lead {
-  id             String     @id @default(uuid())
-  fullName       String
-  email          String?
-  phone          String?
-  company        String?
-  source         String?
-  status         LeadStatus @default(NEW)
-  notes          String?
-  aiScore        Float?     @default(0)
-  aiScoreReason  String?
-  expectedValue  Float?
-  assignedToId   String?
-  createdById    String
-  contactId      String?
-  accountId      String?
-  convertedAt    DateTime?
-  lostReason     String?
-  tags           String[]
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id            String     @id @default(uuid())
+  fullName      String
+  email         String?
+  phone         String?
+  company       String?
+  source        String?
+  status        LeadStatus @default(NEW)
+  notes         String?
+  aiScore       Float?     @default(0)
+  aiScoreReason String?
+  expectedValue Float?
+  assignedToId  String?
+  createdById   String
+  contactId     String?
+  accountId     String?
+  convertedAt   DateTime?
+  lostReason    String?
+  tags          String[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   assignedTo User?      @relation("AssignedTo", fields: [assignedToId], references: [id])
   createdBy  User       @relation("CreatedBy", fields: [createdById], references: [id])
@@ -328,10 +374,10 @@ model Quote {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  deal      Deal?          @relation(fields: [dealId], references: [id])
-  contact   Contact?       @relation(fields: [contactId], references: [id])
-  account   Account?       @relation(fields: [accountId], references: [id])
-  createdBy User           @relation("QuoteCreatedBy", fields: [createdById], references: [id])
+  deal      Deal?           @relation(fields: [dealId], references: [id])
+  contact   Contact?        @relation(fields: [contactId], references: [id])
+  account   Account?        @relation(fields: [accountId], references: [id])
+  createdBy User            @relation("QuoteCreatedBy", fields: [createdById], references: [id])
   lineItems QuoteLineItem[]
 
   @@map("quotes")
@@ -396,8 +442,6 @@ model Task {
   @@map("tasks")
 }
 
-// ─── INVENTORY ────────────────────────────────────────────────────────────────
-
 model Warehouse {
   id        String   @id @default(uuid())
   name      String
@@ -439,27 +483,27 @@ model ProductCategory {
 }
 
 model Product {
-  id               String   @id @default(uuid())
-  sku              String   @unique
-  barcode          String?
-  name             String
-  categoryId       String?
-  description      String?
-  warehouseId      String
-  quantity         Int      @default(0)
-  reservedQty      Int      @default(0)
-  reorderLevel     Int      @default(10)
-  reorderQuantity  Int      @default(50)
-  unitPrice        Float
-  costPrice        Float?
-  valuationMethod  String   @default("FIFO")
-  unit             String   @default("piece")
-  weight           Float?
-  supplierId       String?
-  isActive         Boolean  @default(true)
-  tags             String[]
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(uuid())
+  sku             String   @unique
+  barcode         String?
+  name            String
+  categoryId      String?
+  description     String?
+  warehouseId     String
+  quantity        Int      @default(0)
+  reservedQty     Int      @default(0)
+  reorderLevel    Int      @default(10)
+  reorderQuantity Int      @default(50)
+  unitPrice       Float
+  costPrice       Float?
+  valuationMethod String   @default("FIFO")
+  unit            String   @default("piece")
+  weight          Float?
+  supplierId      String?
+  isActive        Boolean  @default(true)
+  tags            String[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   warehouse      Warehouse        @relation(fields: [warehouseId], references: [id])
   category       ProductCategory? @relation(fields: [categoryId], references: [id])
@@ -584,8 +628,6 @@ model PurchaseOrderItem {
   @@map("purchase_order_items")
 }
 
-// ─── LOGISTICS ────────────────────────────────────────────────────────────────
-
 model Order {
   id              String      @id @default(uuid())
   orderNumber     String      @unique
@@ -629,13 +671,11 @@ model OrderItem {
   @@map("order_items")
 }
 
-// ─── FINANCE — ENTERPRISE ─────────────────────────────────────────────────────
-
 model ChartOfAccounts {
   id             String   @id @default(uuid())
   code           String   @unique
   name           String
-  type           String   // ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
+  type           String
   subType        String?
   description    String?
   parentId       String?
@@ -678,12 +718,12 @@ model Invoice {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  contact     Contact?          @relation(fields: [contactId], references: [id])
-  account     Account?          @relation(fields: [accountId], references: [id])
-  accountCode ChartOfAccounts?  @relation("InvAccount", fields: [accountCodeId], references: [id])
-  createdBy   User              @relation("InvCreatedBy", fields: [createdById], references: [id])
-  lineItems   InvoiceLineItem[]
-  payments    Payment[]
+  contact      Contact?         @relation(fields: [contactId], references: [id])
+  account      Account?         @relation(fields: [accountId], references: [id])
+  accountCode  ChartOfAccounts? @relation("InvAccount", fields: [accountCodeId], references: [id])
+  createdBy    User             @relation("InvCreatedBy", fields: [createdById], references: [id])
+  lineItems    InvoiceLineItem[]
+  payments     Payment[]
   journalEntry JournalEntry?
 
   @@map("invoices")
@@ -726,9 +766,9 @@ model Bill {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  supplier     Supplier?         @relation(fields: [supplierId], references: [id])
-  accountCode  ChartOfAccounts?  @relation("BillAccount", fields: [accountCodeId], references: [id])
-  createdBy    User              @relation("BillCreatedBy", fields: [createdById], references: [id])
+  supplier     Supplier?        @relation(fields: [supplierId], references: [id])
+  accountCode  ChartOfAccounts? @relation("BillAccount", fields: [accountCodeId], references: [id])
+  createdBy    User             @relation("BillCreatedBy", fields: [createdById], references: [id])
   lineItems    BillLineItem[]
   payments     Payment[]
   journalEntry JournalEntry?
@@ -785,9 +825,9 @@ model JournalEntry {
   createdAt   DateTime @default(now())
 
   lines     JournalLine[]
-  invoice   Invoice?  @relation(fields: [invoiceId], references: [id])
-  bill      Bill?     @relation(fields: [billId], references: [id])
-  createdBy User      @relation("JECreatedBy", fields: [createdById], references: [id])
+  invoice   Invoice?    @relation(fields: [invoiceId], references: [id])
+  bill      Bill?       @relation(fields: [billId], references: [id])
+  createdBy User        @relation("JECreatedBy", fields: [createdById], references: [id])
 
   @@map("journal_entries")
 }
@@ -846,17 +886,17 @@ model PettyCash {
 }
 
 model Budget {
-  id         String     @id @default(uuid())
-  department Department
+  id         String         @id @default(uuid())
+  department DepartmentEnum
   title      String
   amount     Float
-  spent      Float      @default(0)
+  spent      Float          @default(0)
   period     String
   startDate  DateTime?
   endDate    DateTime?
   notes      String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   @@map("budgets")
 }
@@ -886,8 +926,6 @@ model BankAccount {
 
   @@map("bank_accounts")
 }
-
-// ─── HR ───────────────────────────────────────────────────────────────────────
 
 model StaffProfile {
   id               String    @id @default(uuid())
@@ -993,8 +1031,6 @@ model PerformanceReview {
   @@map("performance_reviews")
 }
 
-// ─── FACILITY ─────────────────────────────────────────────────────────────────
-
 model Asset {
   id               String      @id @default(uuid())
   name             String
@@ -1033,8 +1069,6 @@ model MaintenanceLog {
   @@map("maintenance_logs")
 }
 
-// ─── DOCUMENTS ────────────────────────────────────────────────────────────────
-
 model Document {
   id             String   @id @default(uuid())
   name           String
@@ -1058,8 +1092,6 @@ model Document {
 
   @@map("documents")
 }
-
-// ─── MESSAGING ────────────────────────────────────────────────────────────────
 
 model InternalMessage {
   id         String   @id @default(uuid())
@@ -1094,8 +1126,6 @@ model Notification {
   @@map("notifications")
 }
 
-// ─── AI ───────────────────────────────────────────────────────────────────────
-
 model AIAgent {
   id           String        @id @default(uuid())
   name         String
@@ -1103,7 +1133,7 @@ model AIAgent {
   systemPrompt String
   model        String        @default("claude-sonnet-4-20250514")
   status       AIAgentStatus @default(ACTIVE)
-  department   Department?
+  department   DepartmentEnum?
   capabilities String[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -1122,8 +1152,8 @@ model AIConversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  agent    AIAgent    @relation(fields: [agentId], references: [id])
-  user     User       @relation(fields: [userId], references: [id])
+  agent    AIAgent     @relation(fields: [agentId], references: [id])
+  user     User        @relation(fields: [userId], references: [id])
   messages AIMessage[]
 
   @@map("ai_conversations")
@@ -1141,8 +1171,6 @@ model AIMessage {
 
   @@map("ai_messages")
 }
-
-// ─── SYSTEM ───────────────────────────────────────────────────────────────────
 
 model AuditLog {
   id         String   @id @default(uuid())
@@ -1168,62 +1196,4 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 
   @@map("system_settings")
-// ============================================
-// NEW MODELS FOR ENHANCED CRM
-// Add these at the end of your schema.prisma
-// ============================================
-
-model Department {
-  id          String   @id @default(uuid())
-n  name        String   @unique
-  code        String   @unique
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  users       User[]
-  
-  @@map("departments")
-}
-
-// Replace your old SystemSetting model with this enhanced version
-model SystemSettings {
-  id              String   @id @default("default")
-  companyName     String   @default("OMOIBO CRM")
-  companyEmail    String?
-  companyPhone    String?
-  companyAddress  String?
-  logoUrl         String?
-  faviconUrl      String?
-  primaryColor    String   @default("#1B3A6B")
-  secondaryColor  String   @default("#1A7A4A")
-  accentColor     String   @default("#D35400")
-  defaultTimezone String   @default("Africa/Lagos")
-  dateFormat      String   @default("DD/MM/YYYY")
-  currency        String   @default("NGN")
-  emailTemplates  Json?
-  invoiceSettings Json?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  @@map("system_settings")
-}
-
-// Counter for auto-generating SKU, Order numbers, etc.
-model Counter {
-  id         String   @id @default(uuid())
-  type       String   @unique // 'SKU', 'ORDER', 'INVOICE', 'PO', 'TRANSFER'
-  prefix     String   @default("")
-  lastNumber Int      @default(0)
-  year       Int?
-  updatedAt  DateTime @updatedAt
-  
-  @@map("counters")
-}
-
-// Update your existing User model - ADD THESE FIELDS:
-// In your existing User model, add:
-// departmentId String?
-// department   Department? @relation(fields: [departmentId], references: [id])
 }
