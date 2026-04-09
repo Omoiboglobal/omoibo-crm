@@ -33,6 +33,7 @@ api.interceptors.response.use(res => res, async err => {
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 export const login = (email, password) => api.post('/auth/login', { email, password });
+export const register = (data) => api.post('/auth/register', data);
 export const getMe = () => api.get('/auth/me');
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
@@ -199,16 +200,38 @@ export const addMaintenance = (id, data) => api.post(`/facility/assets/${id}/mai
 export const getFacilityStats = () => api.get('/facility/stats');
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
-export const getAdminUsers = () => api.get('/admin/users');
+// Enhanced admin APIs
+export const getAdminUsers = (params) => api.get('/admin/users', { params });
 export const createUser = (data) => api.post('/admin/users', data);
 export const updateUser = (id, data) => api.put(`/admin/users/${id}`, data);
 export const toggleUserActive = (id) => api.put(`/admin/users/${id}/toggle-active`);
-export const getUserPermissions = (id) => api.get(`/admin/permissions/${id}`);
-export const togglePermission = (data) => api.post('/admin/permissions/toggle', data);
-export const getAuditLogs = (params) => api.get('/admin/audit-logs', { params });
+export const uploadAvatar = (id, formData) => 
+  api.post(`/admin/users/${id}/avatar`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+
+// Departments
+export const getDepartments = () => api.get('/admin/departments');
+export const createDepartment = (data) => api.post('/admin/departments', data);
+export const updateDepartment = (id, data) => api.put(`/admin/departments/${id}`, data);
+
+// Settings
 export const getSystemSettings = () => api.get('/admin/system-settings');
 export const saveSystemSettings = (data) => api.post('/admin/system-settings', data);
-export const getAdminStats = () => api.get('/admin/stats');
+export const uploadLogo = (formData) => 
+  api.post('/admin/settings/logo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+
+// Permissions
+export const getUserPermissions = (userId) => api.get(`/admin/permissions/${userId}`);
+export const togglePermission = (data) => api.post('/admin/permissions/toggle', data);
+
+// Audit Logs
+export const getAuditLogs = (params) => api.get('/admin/audit-logs', { params });
+
+// Stats
+export const getAdminStats = (params) => api.get('/admin/stats', { params });
 
 // ── EXECUTIVE ─────────────────────────────────────────────────────────────────
 export const getExecutiveDashboard = () => api.get('/executive/dashboard');
