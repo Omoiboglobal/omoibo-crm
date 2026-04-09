@@ -49,4 +49,74 @@ const getMe = async (req, res) => {
   res.json({ success: true, data: user });
 };
 
-module.exports = { login, refreshToken, getMe };
+// ================= NEW: REGISTER WITH DUPLICATE DETECTION =================
+
+const register = async (req, res) => {
+  try {
+    const { name, email, password, role, department } = req.body;
+
+    // DUPLICATE DETECTION - Email (case-insensitive)
+    const existingEmail = await prisma.user.findFirst({
+      where: { 
+        email: { equals: email.toLowerCase(), mode: 'insensitive' } 
+      }
+    });
+
+    if (existingEmail) {
+      return res.status(409).json({ 
+        success: false,
+        error: 'Duplicate email',
+        message: 'This email address is already registered. Please use a different email or login to your existing account.'
+      });
+    }
+
+    // DUPLICATE DETECTION - Name (case-insensitive)
+    const existingName = await prisma.user.findFirst({
+      where: { 
+        name: { equals: name, mode: 'insensitive' } 
+      }
+    });
+
+    if (existingName) {
+      return res.status(409).json({ 
+        success: false,
+        error: 'Duplicate name',
+        message: 'A user with this name already exists. Please use a different name.'
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        role: role || 'SALES_AGENT',
+        department: department || 'SALES'
+      }
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: 'REGISTER',
+        entityType: 'USER',
+        entityId: user.id,
+        newValue: { name, email, role, department },
+        ipAddress: req.ip
+      }
+    });
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Registration successful',
+      data: { id: user.id, name: user.name, email: user.email }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+module.exports = { login, refreshToken, getMe, register };
